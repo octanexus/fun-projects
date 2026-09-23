@@ -101,8 +101,7 @@
       theme: 'chocolate',
       ninjas: 4,
       blocks: [
-        ['wood', 'sq', 290, 0], ['wood', 'sq', 302, 0], ['wood', 'sq', 290, 12],
-        ['wood', 'sq', 302, 12], ['wood', 'sq', 290, 24], ['wood', 'sq', 302, 24],
+        ['ice', 'sq', 302, 0], ['ice', 'sq', 302, 12], ['ice', 'sq', 302, 24],
         ['wood', 'sq', 386, 0], ['wood', 'sq', 398, 0], ['wood', 'sq', 386, 12],
         ['wood', 'sq', 398, 12], ['wood', 'sq', 386, 24], ['wood', 'sq', 398, 24],
         ['stone', 'beam', 344, 36], ['ice', 'sq', 316, 42],

@@ -3,7 +3,7 @@
   'use strict';
 
   const { W, H, S, GROUND_Y, SLING, NINJA_R, STEP, LEVELS, clampPull, Game } = window.Sim;
-  const { Composite } = window.Matter;
+  const { Composite, Vertices } = window.Matter;
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -374,16 +374,23 @@
     }
   }
 
-  // Pine tree of three stacked tiers, optionally with snow on each tier.
+  // Pine tree of three stacked tiers. With snowy set, snow lies the way it does on real conifers:
+  // on top of each tier's outer branches, as a shelf with the green underside showing below it,
+  // and the tier above hides its middle. Only the very tip carries a little cap.
   function pine(g, x, base, h, color, snowy) {
     for (let k = 0; k < 3; k++) {
       const top = base - h + k * h * 0.25, half = h * (0.225 + k * 0.1125), tierH = h * 0.45;
+      const bottom = top + tierH;
       g.fillStyle = color;
-      polygon(g, [[x, top], [x + half, top + tierH], [x - half, top + tierH]]);
-      if (snowy) {
-        g.fillStyle = '#e8eef8';
-        polygon(g, [[x, top], [x + half * 0.4, top + tierH * 0.4], [x - half * 0.4, top + tierH * 0.4]]);
-      }
+      polygon(g, [[x, top], [x + half, bottom], [x - half, bottom]]);
+      if (!snowy) continue;
+      g.fillStyle = '#e8eef8';
+      const shelf = [[x - half * 0.92, bottom - tierH * 0.08], [x - half * 0.68, bottom - tierH * 0.32]];
+      for (let i = 1; i < 6; i++) shelf.push([x - half * 0.68 + (half * 1.36 * i) / 6, bottom - tierH * 0.32 + (i % 2)]);
+      shelf.push([x + half * 0.68, bottom - tierH * 0.32], [x + half * 0.92, bottom - tierH * 0.08]);
+      for (let i = 1; i < 8; i++) shelf.push([x + half * 0.92 - (half * 1.84 * i) / 8, bottom - tierH * 0.08 + (i % 2)]);
+      polygon(g, shelf);
+      if (k === 0) polygon(g, [[x, top], [x + half * 0.2, top + tierH * 0.2], [x - half * 0.2, top + tierH * 0.2]]);
     }
     g.fillStyle = color;
     g.fillRect(x - 1, base - h * 0.1, 2, h * 0.1);
@@ -456,10 +463,9 @@
 
   function newDrop(d, wind, anywhere) {
     const size = Math.min(4, 0.8 - Math.log(1 - Math.random()) / RAIN_SLOPE); // mm
-    const near = (RAIN_FAR - d.dist) / (RAIN_FAR - RAIN_NEAR); // 1 = closest to the camera
     d.vt = 9.65 - 10.3 * Math.exp(-0.6 * size);
     d.pxPerM = FOCAL_PX / d.dist;
-    d.floor = GROUND_Y + 2 + (H - GROUND_Y - 4) * near; // nearer drops land lower on the ground strip
+    d.floor = GROUND_Y; // every drop ends on the grass
     d.alpha = (0.18 + (0.4 * RAIN_NEAR) / d.dist) * (0.6 + 0.4 * Math.min(1, size / 2.5));
     d.width = d.dist < 2.5 ? 2 : 1;
     d.x = rand(-40, W + 10);
@@ -517,16 +523,24 @@
   //   unrimed aggregates of dendrites), about 1 m/s whatever their size
   // - they are so light that they move with the air almost at once, drifting on the breeze
   //   and fluttering from side to side as they tumble
-  // - flakes at the depth of the fruit structures or beyond settle on the ground, building a
-  //   snow layer that slumps sideways wherever it gets steeper than loose snow can hold
+  // - flakes at the depth of the fruit structures or beyond settle where they land: on the
+  //   top of a block or fruit if one is in the way, otherwise on the ground, so the ground
+  //   under a roof stays bare. Everything grows at the same rate however wide it is.
+  // - settled snow evens out into smooth drifts and slumps where it gets too steep; it slides
+  //   off anything that tilts past 35 degrees, moves or gets hit
   const SNOW_NEAR = 1.5, SNOW_FAR = 14; // metres from the camera
-  const SNOW_SETTLES = 8; // flakes nearer than this fall past the bottom of the screen
+  const SNOW_SETTLES = 8; // only flakes at least this far away land in the play area
   const SNOW_FLAKES = 240;
-  const SNOW_MAX = 5; // px of settled snow
+  const SNOW_MAX = 6; // px of snow on the ground
+  const SNOW_ON_TOP = { block: 4, fruit: 2 }; // px of snow on top of things
   const SNOW_REPOSE = 1.2; // steepest step between neighbouring columns, px
-  const SETTLE_BUMP = [0.09, 0.22, 0.45, 0.22, 0.09]; // px added around the spot a flake lands on
+  const SNOW_SMOOTH = 0.08; // how quickly bumps even out, per frame
+  const SETTLE_BUMP = [0.18, 0.44, 0.9, 0.44, 0.18]; // px added around the spot a flake lands on (heavy snowfall)
+  const SETTLE_AMOUNT = SETTLE_BUMP.reduce((a, b) => a + b); // snow per flake, px times px of width
+  const SNOW_COLOR = '#f4f7fb';
   const flakes = [];
   const snowDepth = new Float32Array(W);
+  const snowNext = new Float32Array(W);
   let snowLast = 0;
   let snowGame = null;
 
@@ -545,6 +559,29 @@
     return f;
   }
 
+  // The block or fruit a flake has just fallen onto, if any.
+  function landedOn(f, targets) {
+    const px = f.x * S, py = f.y * S;
+    return targets.find((b) => px >= b.bounds.min.x && px <= b.bounds.max.x && py >= b.bounds.min.y
+      && py <= b.bounds.max.y && Vertices.contains(b.vertices, { x: px, y: py }));
+  }
+
+  function tilt(angle) { // radians away from the nearest flat side
+    const a = ((angle % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2);
+    return Math.min(a, Math.PI / 2 - a);
+  }
+
+  function shedSnow(body) {
+    const n = Math.round(body.plugin.snow * 4);
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        x: rand(body.bounds.min.x, body.bounds.max.x) / S, y: body.bounds.min.y / S - 1,
+        vx: rand(-0.03, 0.03), vy: rand(-0.05, 0), size: 1, color: SNOW_COLOR, life: rand(300, 600),
+      });
+    }
+    body.plugin.snow = 0;
+  }
+
   function snow(g, now) {
     const dt = frameSeconds(now, snowLast);
     snowLast = now;
@@ -554,25 +591,44 @@
     }
     while (flakes.length < SNOW_FLAKES) flakes.push(newFlake({ dist: inVolume(SNOW_NEAR, SNOW_FAR) }, true));
     const wind = breeze(now, 0.4, 0.3), t = now / 1000;
+    const targets = Composite.allBodies(game.world).filter((b) => b.label === 'block' || b.label === 'fruit');
+
+    for (const b of targets) {
+      if (b.plugin.snow && (b.speed > 0.4 || b.angularSpeed > 0.03 || (b.label === 'block' && tilt(b.angle) > 0.6))) {
+        shedSnow(b);
+      }
+    }
 
     for (const f of flakes) {
       const vx = wind + f.flutter * Math.sin(f.freq * t + f.phase);
       f.x += vx * f.pxPerM * dt;
       f.y += f.vt * f.pxPerM * dt;
-      const col = Math.round(f.x);
-      if (f.settles && f.y >= GROUND_Y - (col >= 0 && col < W ? snowDepth[col] : 0)) {
-        if (col >= 0 && col < W) {
+      const col = Math.round(f.x), onScreen = col >= 0 && col < W;
+      const body = f.settles ? landedOn(f, targets) : null;
+      if (body) {
+        if (body.speed < 0.3) {
+          const width = (body.bounds.max.x - body.bounds.min.x) / S;
+          body.plugin.snow = Math.min(SNOW_ON_TOP[body.label], (body.plugin.snow || 0) + SETTLE_AMOUNT / width);
+        }
+        newFlake(f, false);
+      } else if (f.y >= GROUND_Y - (onScreen ? snowDepth[col] : 0)) {
+        if (f.settles && onScreen) {
           SETTLE_BUMP.forEach((amount, i) => {
             const c = col + i - 2;
             if (c >= 0 && c < W) snowDepth[c] = Math.min(SNOW_MAX, snowDepth[c] + amount);
           });
         }
         newFlake(f, false);
-      } else if (f.y > H + 4) {
-        newFlake(f, false);
       }
     }
-    for (let x = 0; x < W - 1; x++) { // slump
+
+    // even out into drifts, then slump anywhere still too steep
+    for (let x = 0; x < W; x++) {
+      const left = snowDepth[Math.max(0, x - 1)], right = snowDepth[Math.min(W - 1, x + 1)];
+      snowNext[x] = snowDepth[x] + SNOW_SMOOTH * (left - 2 * snowDepth[x] + right);
+    }
+    snowDepth.set(snowNext);
+    for (let x = 0; x < W - 1; x++) {
       const step = snowDepth[x] - snowDepth[x + 1];
       if (Math.abs(step) > SNOW_REPOSE) {
         const move = ((Math.abs(step) - SNOW_REPOSE) / 2) * Math.sign(step);
@@ -581,15 +637,38 @@
       }
     }
 
-    g.fillStyle = '#f4f7fb';
-    for (let x = 0; x < W; x++) {
-      const d = Math.round(snowDepth[x]);
-      if (d > 0) g.fillRect(x, GROUND_Y - d, 1, d + 3);
-    }
+    g.fillStyle = SNOW_COLOR;
+    g.beginPath();
+    g.moveTo(0, GROUND_Y + 3);
+    for (let x = 0; x < W; x += 2) g.lineTo(x, GROUND_Y - snowDepth[x]);
+    g.lineTo(W, GROUND_Y - snowDepth[W - 1]);
+    g.lineTo(W, GROUND_Y + 3);
+    g.fill();
     for (const f of flakes) {
       g.fillStyle = `rgba(255, 255, 255, ${f.alpha.toFixed(2)})`;
       g.fillRect(Math.round(f.x), Math.round(f.y), f.px, f.px);
     }
+  }
+
+  // Snow resting on top of a block (along its highest edge) or a fruit.
+  function drawSnowCap(body) {
+    const depth = body.plugin.snow;
+    ctx.fillStyle = SNOW_COLOR;
+    if (body.label === 'fruit') {
+      const r = body.plugin.r;
+      ctx.beginPath();
+      ctx.ellipse(body.position.x / S, body.position.y / S - r + 1, r * 0.7, depth + 1, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    const v = body.vertices;
+    let top = 0;
+    for (let i = 1; i < v.length; i++) {
+      if (v[i].y + v[(i + 1) % v.length].y < v[top].y + v[(top + 1) % v.length].y) top = i;
+    }
+    const a = v[top], b = v[(top + 1) % v.length];
+    const ax = a.x / S, ay = a.y / S, bx = b.x / S, by = b.y / S, dir = Math.sign(bx - ax);
+    polygon(ctx, [[ax, ay], [bx, by], [bx - dir, by - depth], [ax + dir, ay - depth]]);
   }
 
   const TREES = [[186, GROUND_Y, 110], [470, GROUND_Y, 104]]; // the two big pines: x, base, height
@@ -721,6 +800,24 @@
     ctx.restore();
   }
 
+  // A jagged fracture that starts at one long side and runs most of the way across the block,
+  // wandering as it goes, with a short spur off to the side. Each block gets its own.
+  function makeCrack(w, h) {
+    const long = Math.max(w, h), short = Math.min(w, h), limit = long / 2 - 1.5;
+    const clamp = (v) => Math.max(-limit, Math.min(limit, v));
+    const reach = rand(0.6, 0.9), side = Math.random() < 0.5 ? -1 : 1;
+    let along = rand(-0.3, 0.3) * long;
+    const main = [];
+    for (let i = 0; i <= 5; i++) {
+      main.push([clamp(along), side * (short / 2 - short * reach * (i / 5))]);
+      along += rand(-2, 2);
+    }
+    const [bx, by] = main[2 + Math.floor(Math.random() * 2)];
+    const spur = [[bx, by], [clamp(bx + (Math.random() < 0.5 ? -1 : 1) * rand(2, 3.5)), by - side * rand(0.5, 1.5)]];
+    const local = ([a, c]) => (w >= h ? [a, c] : [c, a]);
+    return [main.map(local), spur.map(local)];
+  }
+
   function drawBlock(body) {
     const { mat, w, h, health, maxHealth } = body.plugin;
     const [fill, edge] = BLOCK_COLORS[mat];
@@ -731,16 +828,12 @@
     ctx.fillRect(-w / 2, -h / 2, w, h);
     ctx.fillStyle = fill;
     ctx.fillRect(-w / 2 + 1, -h / 2 + 1, w - 2, h - 2);
-    if (health < maxHealth * 0.6) { // crack along the long side
-      const len = Math.max(w, h) / 2 - 2, off = Math.min(w, h) / 4, across = w >= h;
+    if (health < maxHealth * 0.6) {
+      const crack = body.plugin.crack || (body.plugin.crack = makeCrack(w, h));
       ctx.strokeStyle = edge;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let i = 0; i <= 4; i++) {
-        const along = -len * 0.6 + i * len * 0.3, side = i % 2 ? off : -off;
-        if (across) ctx.lineTo(along, side);
-        else ctx.lineTo(side, along);
-      }
+      for (const line of crack) line.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx, cy) : ctx.moveTo(cx, cy)));
       ctx.stroke();
     }
     ctx.restore();
@@ -995,6 +1088,7 @@
     for (const body of Composite.allBodies(game.world)) {
       if (body.label === 'block') drawBlock(body);
       else if (body.label === 'fruit') drawFruit(body);
+      if (body.plugin.snow > 0.4) drawSnowCap(body);
       else if (body.label === 'ninja') drawNinja(body.position.x / S, body.position.y / S, body.angle);
     }
 
