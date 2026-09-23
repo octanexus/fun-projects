@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Angry Ninjas</title>
+  <meta name="description" content="Fling ninjas from a slingshot and slice every fruit. A tiny physics game that works offline.">
+  <meta name="theme-color" content="#141a36">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="stage">
+    <canvas id="game" width="480" height="270" aria-label="Game area: drag back and release to fling a ninja"></canvas>
+
+    <div id="hud" hidden>
+      <button id="btn-menu" class="icon" aria-label="Back to menu">&#9776;</button>
+      <button id="btn-restart" class="icon" aria-label="Restart level">&#8635;</button>
+      <span id="hud-level"></span>
+      <span id="hud-score">0</span>
+    </div>
+
+    <section id="menu" class="screen">
+      <h1>Angry Ninjas</h1>
+      <p class="tagline">Pull back, let go, slice every fruit.</p>
+      <div id="levels"></div>
+      <p class="hint">Drag anywhere to aim &middot; release to fling</p>
+    </section>
+
+    <section id="result" class="screen" hidden>
+      <h2 id="result-title"></h2>
+      <p id="result-score"></p>
+      <p id="result-note" class="hint"></p>
+      <div class="row">
+        <button id="btn-result-menu">Menu</button>
+        <button id="btn-retry">Retry</button>
+        <button id="btn-next">Next</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="rotate">Turn your phone sideways to play</div>
+
+  <script src="lib/matter.min.js"></script>
+  <script src="sim.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
