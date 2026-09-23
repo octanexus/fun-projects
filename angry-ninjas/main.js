@@ -26,8 +26,8 @@
     wonderland: { sky: ['#5b3f8c', '#f4a7c9'], ground: '#3a2d4a', grass: '#3a2d4a', scenery: wonderland },
     chocolate: { sky: ['#ff9ccf', '#fff1d6'], ground: '#4a2a1a', grass: '#7de07a', scenery: chocolate, animate: chocolateFlow },
     gatsby: { sky: ['#070a18', '#23455a'], ground: '#14110b', grass: '#d4af37', scenery: gatsby },
-    nevermore: { sky: ['#3b3846', '#8e8a99'], ground: '#1d1b22', grass: '#4a4656', scenery: nevermore, animate: bats },
-    forks: { sky: ['#4b5d6b', '#aebfc4'], ground: '#2d3b33', grass: '#56705c', scenery: forks, animate: rain },
+    gothic: { sky: ['#3b3846', '#8e8a99'], ground: '#1d1b22', grass: '#4a4656', scenery: gothic, animate: bats },
+    pines: { sky: ['#4b5d6b', '#aebfc4'], ground: '#2d3b33', grass: '#56705c', scenery: pines, animate: rain },
   };
   const GRAVITY = 0.0005; // canvas px per ms², matches the physics world
 
@@ -270,7 +270,7 @@
     g.fillRect(0, GROUND_Y + 6, W, 1);
   }
 
-  function nevermore(g) {
+  function gothic(g) {
     g.fillStyle = '#e9e6f0';
     disc(g, 408, 52, 18);
 
@@ -363,7 +363,7 @@
     }
   }
 
-  function forks(g) {
+  function pines(g) {
     g.fillStyle = 'rgba(255, 255, 255, 0.25)'; // sun hidden behind cloud
     disc(g, 408, 52, 16);
     g.fillStyle = 'rgba(235, 240, 242, 0.35)';
@@ -409,12 +409,90 @@
     disc(g, 225, 235, 3);
   }
 
+  // Rain, modelled on real drops:
+  // - sizes follow the Marshall-Palmer distribution (exponential, slope 4.1 * R^-0.21 per mm)
+  // - each drop falls at the terminal velocity for its size, 9.65 - 10.3 * e^(-0.6 D) m/s
+  //   (Atlas et al. 1973 fit to Gunn & Kinzer 1949)
+  // - quadratic air drag balances gravity at that speed, so drops lag behind wind gusts
+  //   and small drops slant more than big ones
+  // - each drop sits at a fixed distance from the camera, spread by volume (more far than near);
+  //   perspective makes near drops fast, long and bright, far ones slow, short and faint
+  // - streaks are as long as a film camera's 1/48 s shutter would blur them
+  const RAIN_RATE = 25; // mm per hour: steady, fairly heavy rain
+  const RAIN_SLOPE = 4.1 * Math.pow(RAIN_RATE, -0.21);
+  const SHUTTER = 1 / 48; // s
+  const FOCAL_PX = H / (2 * Math.tan((15 * Math.PI) / 180)); // 30 degree vertical field of view
+  const NEAR = 2, FAR = 15; // metres; the fruit structures stand at FAR
+  const HORIZON_Y = 200;
+  const RAIN_DROPS = 200;
+  const drops = [];
+  const splashes = [];
+  let rainLast = 0;
+
+  function windSpeed(now) { // m/s: a light breeze with slow, irregular gusts
+    const t = now / 1000;
+    return 1 + 0.8 * Math.sin(t * 0.7) * Math.sin(t * 0.23 + 1);
+  }
+
+  function newDrop(d, wind, anywhere) {
+    const size = Math.min(4, 0.5 - Math.log(1 - Math.random()) / RAIN_SLOPE); // mm; drizzle is invisible
+    d.vt = 9.65 - 10.3 * Math.exp(-0.6 * size);
+    d.pxPerM = FOCAL_PX / d.dist;
+    d.floor = HORIZON_Y + ((GROUND_Y - HORIZON_Y) * FAR) / d.dist; // where the ground is at this distance
+    d.alpha = (0.12 + (0.5 * NEAR) / d.dist) * (0.5 + 0.5 * Math.min(1, size / 2.5));
+    d.width = d.dist < 3.5 ? 2 : 1;
+    d.x = rand(-100, W + 10);
+    d.y = anywhere ? rand(-20, Math.min(d.floor, H)) : rand(-30, 0);
+    d.vx = wind; // already falling at terminal velocity
+    d.vy = d.vt;
+    return d;
+  }
+
   function rain(g, now) {
-    g.fillStyle = 'rgba(220, 232, 240, 0.45)';
-    for (let i = 0; i < 60; i++) {
-      const x = Math.round(((i * 97 + now * 0.05) % (W + 20)) - 10);
-      const y = Math.round(((i * 61 + now * 0.35) % (GROUND_Y + 10)) - 10);
-      g.fillRect(x, y, 1, 4);
+    const dt = (rainLast && now - rainLast < 100 ? now - rainLast : 16) / 1000;
+    rainLast = now;
+    const wind = windSpeed(now);
+    while (drops.length < RAIN_DROPS) {
+      const dist = Math.cbrt(NEAR ** 3 + Math.random() * (FAR ** 3 - NEAR ** 3)); // uniform in volume
+      drops.push(newDrop({ dist }, wind, true));
+    }
+
+    for (const d of drops) {
+      const ux = d.vx - wind, uy = d.vy; // velocity relative to the air
+      const drag = (9.8 / (d.vt * d.vt)) * Math.hypot(ux, uy);
+      d.vx -= drag * ux * dt;
+      d.vy += (9.8 - drag * uy) * dt;
+      d.x += d.vx * d.pxPerM * dt;
+      d.y += d.vy * d.pxPerM * dt;
+      if (d.y >= d.floor || d.y > H + 30) {
+        if (d.y >= d.floor && d.floor < H) {
+          for (let i = 0; i < 2; i++) {
+            splashes.push({ x: d.x, y: d.floor, vx: rand(-0.02, 0.02), vy: -rand(0.02, 0.05), life: 160 });
+          }
+        }
+        newDrop(d, wind, false);
+      }
+    }
+
+    for (const d of drops) {
+      const blur = d.pxPerM * SHUTTER;
+      g.strokeStyle = `rgba(222, 234, 242, ${d.alpha.toFixed(2)})`;
+      g.lineWidth = d.width;
+      g.beginPath();
+      g.moveTo(d.x, d.y);
+      g.lineTo(d.x - d.vx * blur, d.y - d.vy * blur);
+      g.stroke();
+    }
+
+    g.fillStyle = 'rgba(222, 234, 242, 0.5)';
+    for (let i = splashes.length - 1; i >= 0; i--) {
+      const s = splashes[i];
+      s.vy += GRAVITY * dt * 1000;
+      s.x += s.vx * dt * 1000;
+      s.y += s.vy * dt * 1000;
+      s.life -= dt * 1000;
+      if (s.life <= 0) splashes.splice(i, 1);
+      else g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
     }
   }
 

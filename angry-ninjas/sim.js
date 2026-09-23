@@ -127,8 +127,8 @@
       fruits: [['apple', 354, 0], ['melon', 354, 90], ['orange', 440, 84], ['apple', 440, 0]],
     },
     {
-      name: 'Nevermore',
-      theme: 'nevermore',
+      name: 'Gloom Academy',
+      theme: 'gothic',
       ninjas: 4,
       blocks: [
         ['stone', 'post', 285, 0], ['stone', 'post', 315, 0], ['stone', 'plank', 300, 36],
@@ -140,8 +140,8 @@
       fruits: [['apple', 300, 0], ['orange', 300, 42], ['apple', 410, 0], ['melon', 410, 84]],
     },
     {
-      name: 'Twilight Woods',
-      theme: 'forks',
+      name: 'Misty Pines',
+      theme: 'pines',
       ninjas: 4,
       blocks: [
         ['wood', 'post', 290, 0], ['ice', 'post', 317, 0], ['wood', 'post', 344, 0], ['wood', 'long', 317, 36],

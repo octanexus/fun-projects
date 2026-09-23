@@ -21,8 +21,8 @@ There are eight levels:
 4. **Mad Tea Party**: Alice in Wonderland, with a Cheshire grin, giant mushrooms and a checkerboard floor.
 5. **Chocolate River**: a chocolate factory, with a chocolate waterfall, lollipop trees and candy grass.
 6. **Gatsby's Party**: The Great Gatsby (2013 film style), with an art-deco mansion, fireworks and the green light across the bay.
-7. **Nevermore**: Wednesday, with a gothic academy and a half-colour spiderweb window, bats, gravestones and fog.
-8. **Twilight Woods**: Twilight, with rain over misty pine forests, a red pickup truck and a glass house full of apples.
+7. **Gloom Academy**: a gothic boarding school with a half-colour spiderweb window, bats, gravestones and fog.
+8. **Misty Pines**: rain over misty pine forests, a red pickup truck and a glass house full of apples.
 
 ## Install
 
