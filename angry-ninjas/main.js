@@ -180,19 +180,29 @@
         g.fillRect(x, top + 3, 5, 1);
       }
     }
-    // cliff with a chocolate stream that pours off its edge in an arc (streaks move in chocolateFlow)
+    // cliff with a rocky shoulder; the stream flows out from behind it towards the brink
     g.fillStyle = '#c98aa8';
-    polygon(g, [[100, 212], [104, 140], [112, 124], [124, 118], [150, 118], [150, 212]]);
+    polygon(g, [[100, 212], [103, 150], [108, 132], [114, 122], [122, 112], [128, 113], [133, 121], [150, 121], [150, 212]]);
     g.fillStyle = '#b77596';
-    polygon(g, [[100, 212], [104, 140], [112, 124], [118, 121], [110, 144], [108, 212]]);
-    g.fillStyle = '#6b3a22';
-    g.fillRect(112, 112, 38, 7);
+    polygon(g, [[100, 212], [103, 150], [108, 132], [114, 122], [118, 118], [110, 140], [107, 212]]);
+
+    // The waterfall, shaped like a real free overfall: the stream's surface dips as it speeds up
+    // towards the brink, then the falling sheet leaves the edge horizontally with both of its
+    // surfaces following free-fall parabolas (animated froth and ripples are in chocolateFlow)
     const pour = [];
-    for (let s = 0; s <= 1.001; s += 0.1) pour.push([150 + 28 * s, 112 + 96 * s * s]);
-    for (let s = 1; s >= -0.001; s -= 0.1) pour.push([150 + 6 * s, 124 + 84 * s * s]);
+    for (let x = 124; x <= 150; x += 2) pour.push([x, streamSurface(x)]);
+    for (let t = 0.1; t <= 1.001; t += 0.1) pour.push(fallPoint(t, 1));
+    for (let t = 1; t >= -0.001; t -= 0.1) pour.push(fallPoint(t, 0));
+    pour.push([124, 121]);
+    g.fillStyle = '#6b3a22';
     polygon(g, pour);
+    g.fillStyle = '#c98aa8'; // the shoulder hides where the stream comes from
+    polygon(g, [[114, 122], [122, 112], [128, 113], [133, 121], [133, 122]]);
+
     g.fillStyle = '#f0dcc0'; // foam where it lands
-    for (const [fx, fy, r] of [[152, 210, 3], [158, 207, 4], [165, 205, 5], [172, 207, 4], [179, 210, 3]]) disc(g, fx, fy, r);
+    for (const [fx, fy, r] of [[161, 210, 3], [166, 207, 4], [173, 205, 5], [179, 207, 4], [184, 210, 3]]) disc(g, fx, fy, r);
+    g.fillStyle = 'rgba(245, 228, 205, 0.35)'; // spray and mist
+    for (const [mx, my, r] of [[167, 201, 7], [179, 200, 6], [173, 196, 7]]) disc(g, mx, my, r);
 
     // lollipop trees
     for (const [lx, top, r, color] of [[222, 150, 14, '#ff4f7b'], [252, 184, 10, '#5ec8f2'], [470, 140, 12, '#ffb000']]) {
@@ -661,16 +671,33 @@
     }
   }
 
+  // Chocolate waterfall geometry (canvas px). The stream is 6 px deep upstream and thins to
+  // about 0.7 of that at the brink, x = 150, where the bed ends.
+  function streamSurface(x) {
+    return 115 + 1.7 * ((x - 124) / 26) ** 2;
+  }
+
+  // A point on the falling sheet at time t (0 = brink, 1 = splashdown), across it from its
+  // lower surface (0), which leaves the edge of the rock, to its upper surface (1).
+  // Free fall: horizontal distance grows with t, drop with t squared.
+  function fallPoint(t, across) {
+    return [150 + (19 + 9 * across) * t, 121 - 4.3 * across + (87 + 4 * across) * t * t];
+  }
+
   function chocolateFlow(g, now) {
-    // streaks sliding along the pour's arc, and along the stream on the clifftop
-    g.fillStyle = '#9a6040';
-    for (let i = 0; i < 12; i++) {
-      const s = (now * 0.0011 + i * 0.29) % 1;
-      const across = (i % 3) / 2; // 0 = back edge of the pour, 1 = front edge
-      const x = 150 + (8 + 18 * across) * s, y = 116 + 91 * s * s + 4 * (1 - across) * (1 - s);
-      g.fillRect(Math.round(x), Math.round(y), 1, 3 + Math.round(s * 4));
+    // ripples speeding up towards the brink
+    g.fillStyle = '#8f5635';
+    for (let i = 0; i < 3; i++) {
+      const u = (now * 0.0009 + i / 3) % 1, x = 131 + 19 * u * u;
+      g.fillRect(Math.round(x), Math.round(streamSurface(x)) + 1, 2, 1);
     }
-    for (let i = 0; i < 4; i++) g.fillRect(Math.round(112 + ((now * 0.03 + i * 10) % 38)), 114 + (i % 2) * 2, 3, 1);
+    // streaks falling with the sheet, turning frothy and pale as air mixes in lower down
+    for (let i = 0; i < 14; i++) {
+      const t = (now * 0.0011 + i * 0.29) % 1;
+      const [x, y] = fallPoint(t, (i % 3) / 2);
+      g.fillStyle = t > 0.7 ? '#e8cfae' : t > 0.35 ? '#b98556' : '#8f5635';
+      g.fillRect(Math.round(x), Math.round(y), 1, 2 + Math.round(t * 4));
+    }
   }
 
   // ---------- sprites (plain shapes) ----------

@@ -1,6 +1,6 @@
 // Offline support: cache the whole game on install, then serve from the cache.
 // Bump CACHE whenever any file changes so players get the new version.
-const CACHE = 'angry-ninjas-v5';
+const CACHE = 'angry-ninjas-v6';
 const FILES = [
   './',
   'index.html',
