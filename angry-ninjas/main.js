@@ -24,8 +24,10 @@
     dusk: { sky: ['#e9795d', '#ffd49a'], sun: '#fff1c4', hill: '#b86a6a', cap: '#f6d7d0', ground: '#4a5e32', grass: '#7f9a47' },
     night: { sky: ['#141a36', '#34407a'], sun: '#f2eecb', hill: '#2b3463', cap: '#9aa6d6', ground: '#243522', grass: '#3f6a3a' },
     wonderland: { sky: ['#5b3f8c', '#f4a7c9'], ground: '#3a2d4a', grass: '#3a2d4a', scenery: wonderland },
-    chocolate: { sky: ['#ff9ccf', '#fff1d6'], ground: '#4a2a1a', grass: '#7de07a', scenery: chocolate },
+    chocolate: { sky: ['#ff9ccf', '#fff1d6'], ground: '#4a2a1a', grass: '#7de07a', scenery: chocolate, animate: chocolateFlow },
     gatsby: { sky: ['#070a18', '#23455a'], ground: '#14110b', grass: '#d4af37', scenery: gatsby },
+    nevermore: { sky: ['#3b3846', '#8e8a99'], ground: '#1d1b22', grass: '#4a4656', scenery: nevermore, animate: bats },
+    forks: { sky: ['#4b5d6b', '#aebfc4'], ground: '#2d3b33', grass: '#56705c', scenery: forks, animate: rain },
   };
   const GRAVITY = 0.0005; // canvas px per ms², matches the physics world
 
@@ -177,16 +179,19 @@
         g.fillRect(x, top + 3, 5, 1);
       }
     }
-    g.fillStyle = '#c98aa8'; // cliff it pours over
-    polygon(g, [[126, 212], [130, 162], [140, 152], [176, 150], [186, 160], [190, 212]]);
+    // cliff with a chocolate stream that pours off its edge in an arc (streaks move in chocolateFlow)
+    g.fillStyle = '#c98aa8';
+    polygon(g, [[100, 212], [104, 140], [112, 124], [124, 118], [150, 118], [150, 212]]);
+    g.fillStyle = '#b77596';
+    polygon(g, [[100, 212], [104, 140], [112, 124], [118, 121], [110, 144], [108, 212]]);
     g.fillStyle = '#6b3a22';
-    g.fillRect(149, 150, 18, 60);
-    g.fillStyle = '#8f5635';
-    for (const [sx, sy] of [[152, 154], [156, 160], [160, 150], [164, 168]]) g.fillRect(sx, sy, 1, 30);
-    g.fillStyle = '#e8c9a0'; // splash where it meets the river
-    g.beginPath();
-    g.ellipse(158, 210, 15, 3, 0, 0, Math.PI * 2);
-    g.fill();
+    g.fillRect(112, 112, 38, 7);
+    const pour = [];
+    for (let s = 0; s <= 1.001; s += 0.1) pour.push([150 + 28 * s, 112 + 96 * s * s]);
+    for (let s = 1; s >= -0.001; s -= 0.1) pour.push([150 + 6 * s, 124 + 84 * s * s]);
+    polygon(g, pour);
+    g.fillStyle = '#f0dcc0'; // foam where it lands
+    for (const [fx, fy, r] of [[152, 210, 3], [158, 207, 4], [165, 205, 5], [172, 207, 4], [179, 210, 3]]) disc(g, fx, fy, r);
 
     // lollipop trees
     for (const [lx, top, r, color] of [[222, 150, 14, '#ff4f7b'], [252, 184, 10, '#5ec8f2'], [470, 140, 12, '#ffb000']]) {
@@ -263,6 +268,166 @@
     // gold trim on the terrace
     g.fillStyle = '#d4af37';
     g.fillRect(0, GROUND_Y + 6, W, 1);
+  }
+
+  function nevermore(g) {
+    g.fillStyle = '#e9e6f0';
+    disc(g, 408, 52, 18);
+
+    // gothic academy silhouette
+    g.fillStyle = '#16141c';
+    g.fillRect(96, 168, 124, 72);
+    g.fillRect(102, 132, 22, 36);
+    polygon(g, [[100, 132], [113, 104], [126, 132]]);
+    g.fillRect(146, 126, 28, 42);
+    polygon(g, [[144, 126], [160, 90], [176, 126]]);
+    g.fillRect(194, 140, 20, 28);
+    polygon(g, [[192, 140], [204, 116], [216, 140]]);
+    for (let x = 96; x < 220; x += 12) polygon(g, [[x, 168], [x + 6, 160], [x + 12, 168]]);
+    g.fillStyle = '#a89cc8'; // pointed windows
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 10; col++) {
+        if ((row * 4 + col * 3) % 5 === 0) continue;
+        const wx = 101 + col * 12, wy = 178 + row * 18;
+        g.fillRect(wx, wy, 3, 6);
+        g.fillRect(wx + 1, wy - 1, 1, 1);
+      }
+    }
+    for (const [wx, wy] of [[110, 142], [110, 154], [201, 148]]) g.fillRect(wx, wy, 3, 6);
+
+    // spiderweb rose window: one half colourful, the other black and white
+    const cx = 160, cy = 144, r = 10;
+    g.fillStyle = '#d8d8de';
+    g.beginPath();
+    g.arc(cx, cy, r, Math.PI / 2, Math.PI * 1.5);
+    g.fill();
+    ['#b28dff', '#6fd3ff', '#ffd23f', '#ff7eb6'].forEach((color, i) => {
+      g.fillStyle = color;
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.arc(cx, cy, r, -Math.PI / 2 + (i * Math.PI) / 4, -Math.PI / 2 + ((i + 1) * Math.PI) / 4);
+      g.fill();
+    });
+    g.strokeStyle = '#16141c';
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      g.moveTo(cx, cy);
+      g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    for (const ring of [4, 7.5]) {
+      for (let i = 0; i <= 8; i++) {
+        const a = (i * Math.PI) / 4, px = cx + Math.cos(a) * ring, py = cy + Math.sin(a) * ring;
+        if (i) g.lineTo(px, py);
+        else g.moveTo(px, py);
+      }
+    }
+    g.stroke();
+
+    // dead tree and gravestones
+    g.strokeStyle = '#16141c';
+    g.lineWidth = 2;
+    g.beginPath();
+    for (const [x1, y1, x2, y2] of [[250, 240, 250, 160], [250, 196, 234, 176], [234, 176, 228, 168],
+      [250, 184, 266, 164], [266, 164, 274, 160], [250, 170, 244, 154], [258, 174, 262, 186]]) {
+      g.moveTo(x1, y1);
+      g.lineTo(x2, y2);
+    }
+    g.stroke();
+    for (const [gx, h] of [[234, 12], [264, 9], [468, 11]]) {
+      g.fillStyle = '#6e6b78';
+      g.fillRect(gx - 4, GROUND_Y - h, 8, h);
+      disc(g, gx, GROUND_Y - h, 4);
+      g.fillStyle = '#4a4754';
+      g.fillRect(gx, GROUND_Y - h - 1, 1, 6);
+      g.fillRect(gx - 2, GROUND_Y - h + 1, 5, 1);
+    }
+
+    // low fog
+    g.fillStyle = 'rgba(200, 195, 215, 0.15)';
+    g.fillRect(0, 222, W, GROUND_Y - 222);
+  }
+
+  function bats(g, now) {
+    g.fillStyle = '#0b0a0f';
+    for (let i = 0; i < 3; i++) {
+      const x = Math.round(((now * 0.02 + i * 170) % (W + 40)) - 20);
+      const y = Math.round(40 + i * 22 + Math.sin(now / 400 + i * 2) * 6);
+      const wing = Math.floor(now / 150 + i) % 2 ? -3 : 1;
+      g.fillRect(x - 1, y - 1, 3, 3);
+      g.fillRect(x - 5, y + wing, 4, 1);
+      g.fillRect(x + 2, y + wing, 4, 1);
+      g.fillRect(x - 3, y + wing / 2, 2, 1);
+      g.fillRect(x + 2, y + wing / 2, 2, 1);
+    }
+  }
+
+  function forks(g) {
+    g.fillStyle = 'rgba(255, 255, 255, 0.25)'; // sun hidden behind cloud
+    disc(g, 408, 52, 16);
+    g.fillStyle = 'rgba(235, 240, 242, 0.35)';
+    for (const [x, y, rx] of [[120, 40, 70], [330, 70, 90], [460, 34, 50]]) {
+      g.beginPath();
+      g.ellipse(x, y, rx, 6, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // layered pine forest fading into the mist
+    const pine = (x, base, h, color) => {
+      g.fillStyle = color;
+      for (let k = 0; k < 3; k++) {
+        const top = base - h + k * h * 0.25, half = h * (0.225 + k * 0.1125);
+        polygon(g, [[x, top], [x + half, top + h * 0.45], [x - half, top + h * 0.45]]);
+      }
+      g.fillRect(x - 1, base - h * 0.1, 2, h * 0.1);
+    };
+    for (let i = 0; i < 36; i++) pine(i * 14 + 4, 204, 30 + ((i * 37) % 15), '#8aa3a6');
+    g.fillStyle = 'rgba(230, 238, 240, 0.35)';
+    g.fillRect(0, 184, W, 22);
+    for (let i = 0; i < 19; i++) pine(i * 26 + 10, 226, 48 + ((i * 29) % 22), '#56766f');
+    g.fillStyle = 'rgba(230, 238, 240, 0.25)';
+    g.fillRect(0, 214, W, 14);
+    pine(186, GROUND_Y, 110, '#26403b');
+    pine(470, GROUND_Y, 104, '#26403b');
+
+    // a few sparkles
+    g.fillStyle = '#ffffff';
+    for (const [x, y] of [[296, 36], [352, 64], [436, 26]]) {
+      g.fillRect(x, y - 2, 1, 5);
+      g.fillRect(x - 2, y, 5, 1);
+    }
+
+    // old red pickup truck
+    g.fillStyle = '#a8322a';
+    g.fillRect(198, 226, 34, 8);
+    g.fillRect(218, 218, 12, 8);
+    g.fillStyle = '#9fb4bd';
+    g.fillRect(221, 220, 7, 4);
+    g.fillStyle = '#1a1a1a';
+    disc(g, 205, 235, 3);
+    disc(g, 225, 235, 3);
+  }
+
+  function rain(g, now) {
+    g.fillStyle = 'rgba(220, 232, 240, 0.45)';
+    for (let i = 0; i < 60; i++) {
+      const x = Math.round(((i * 97 + now * 0.05) % (W + 20)) - 10);
+      const y = Math.round(((i * 61 + now * 0.35) % (GROUND_Y + 10)) - 10);
+      g.fillRect(x, y, 1, 4);
+    }
+  }
+
+  function chocolateFlow(g, now) {
+    // streaks sliding along the pour's arc, and along the stream on the clifftop
+    g.fillStyle = '#9a6040';
+    for (let i = 0; i < 12; i++) {
+      const s = (now * 0.0011 + i * 0.29) % 1;
+      const across = (i % 3) / 2; // 0 = back edge of the pour, 1 = front edge
+      const x = 150 + (8 + 18 * across) * s, y = 116 + 91 * s * s + 4 * (1 - across) * (1 - s);
+      g.fillRect(Math.round(x), Math.round(y), 1, 3 + Math.round(s * 4));
+    }
+    for (let i = 0; i < 4; i++) g.fillRect(Math.round(112 + ((now * 0.03 + i * 10) % 38)), 114 + (i % 2) * 2, 3, 1);
   }
 
   // ---------- sprites (plain shapes) ----------
@@ -543,6 +708,8 @@
 
   function render() {
     ctx.drawImage(background(game.level.theme), 0, 0);
+    const animate = THEMES[game.level.theme].animate;
+    if (animate) animate(ctx, performance.now());
 
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     for (const p of game.trail) ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 2, 2);

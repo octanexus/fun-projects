@@ -126,6 +126,31 @@
       ],
       fruits: [['apple', 354, 0], ['melon', 354, 90], ['orange', 440, 84], ['apple', 440, 0]],
     },
+    {
+      name: 'Nevermore',
+      theme: 'nevermore',
+      ninjas: 4,
+      blocks: [
+        ['stone', 'post', 285, 0], ['stone', 'post', 315, 0], ['stone', 'plank', 300, 36],
+        ['wood', 'post', 285, 42], ['wood', 'post', 315, 42], ['wood', 'plank', 300, 78],
+        ['ice', 'sq', 300, 84],
+        ['stone', 'post', 395, 0], ['stone', 'post', 425, 0], ['stone', 'plank', 410, 36],
+        ['wood', 'post', 395, 42], ['wood', 'post', 425, 42], ['wood', 'plank', 410, 78],
+      ],
+      fruits: [['apple', 300, 0], ['orange', 300, 42], ['apple', 410, 0], ['melon', 410, 84]],
+    },
+    {
+      name: 'Twilight Woods',
+      theme: 'forks',
+      ninjas: 4,
+      blocks: [
+        ['wood', 'post', 290, 0], ['ice', 'post', 317, 0], ['wood', 'post', 344, 0], ['wood', 'long', 317, 36],
+        ['ice', 'post', 293, 42], ['ice', 'post', 341, 42], ['wood', 'long', 317, 78],
+        ['wood', 'post', 380, 0], ['ice', 'post', 407, 0], ['wood', 'post', 434, 0], ['wood', 'long', 407, 36],
+        ['wood', 'sq', 395, 42], ['ice', 'sq', 425, 42],
+      ],
+      fruits: [['apple', 303, 0], ['apple', 317, 42], ['apple', 420, 0], ['apple', 317, 84]],
+    },
   ];
 
   // Limit a slingshot pull to its maximum length and keep the ninja above the ground.

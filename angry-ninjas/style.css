@@ -90,7 +90,7 @@ h2 { font-size: 9cqh; }
 .hint { font-size: 3.4cqh; opacity: 0.8; }
 #result-score { font-size: 6cqh; }
 
-#levels { display: grid; grid-template-columns: repeat(3, 36cqh); gap: 2.4cqh; }
+#levels { display: grid; grid-template-columns: repeat(4, 36cqh); gap: 2.4cqh; }
 .row { display: flex; gap: 3cqh; flex-wrap: wrap; justify-content: center; }
 
 .level {
