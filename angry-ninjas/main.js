@@ -23,6 +23,9 @@
     day: { sky: ['#7ec8f2', '#d4f1fd'], sun: '#fff7cf', hill: '#a9cfe0', cap: '#f4fbff', ground: '#4f7f36', grass: '#78c152' },
     dusk: { sky: ['#e9795d', '#ffd49a'], sun: '#fff1c4', hill: '#b86a6a', cap: '#f6d7d0', ground: '#4a5e32', grass: '#7f9a47' },
     night: { sky: ['#141a36', '#34407a'], sun: '#f2eecb', hill: '#2b3463', cap: '#9aa6d6', ground: '#243522', grass: '#3f6a3a' },
+    wonderland: { sky: ['#5b3f8c', '#f4a7c9'], ground: '#3a2d4a', grass: '#3a2d4a', scenery: wonderland },
+    chocolate: { sky: ['#ff9ccf', '#fff1d6'], ground: '#4a2a1a', grass: '#7de07a', scenery: chocolate },
+    gatsby: { sky: ['#070a18', '#23455a'], ground: '#14110b', grass: '#d4af37', scenery: gatsby },
   };
   const GRAVITY = 0.0005; // canvas px per ms², matches the physics world
 
@@ -74,18 +77,192 @@
       g.fillStyle = mix(t.sky[0], t.sky[1], i / (bands - 1));
       g.fillRect(0, Math.floor(i * bandH), W, Math.ceil(bandH) + 1);
     }
-    g.fillStyle = t.sun;
-    disc(g, 408, 52, 16);
-    g.fillStyle = t.hill;
-    polygon(g, [[20, GROUND_Y], [180, 104], [340, GROUND_Y]]);
-    g.fillStyle = t.cap;
-    polygon(g, [[152, 128], [180, 104], [208, 128], [196, 124], [188, 132], [180, 126], [170, 133], [162, 125]]);
+    if (!t.scenery) {
+      g.fillStyle = t.sun;
+      disc(g, 408, 52, 16);
+      g.fillStyle = t.hill;
+      polygon(g, [[20, GROUND_Y], [180, 104], [340, GROUND_Y]]);
+      g.fillStyle = t.cap;
+      polygon(g, [[152, 128], [180, 104], [208, 128], [196, 124], [188, 132], [180, 126], [170, 133], [162, 125]]);
+    }
     g.fillStyle = t.ground;
     g.fillRect(0, GROUND_Y, W, H - GROUND_Y);
     g.fillStyle = t.grass;
     g.fillRect(0, GROUND_Y, W, 3);
+    if (t.scenery) t.scenery(g);
     backgrounds[name] = c;
     return c;
+  }
+
+  // ---------- themed scenery for levels 4-6 (drawn once into the cached background) ----------
+
+  function wonderland(g) {
+    // Cheshire cat grin
+    const x = 400, y = 50;
+    g.save();
+    g.beginPath();
+    g.arc(x, y - 10, 24, 0.2 * Math.PI, 0.8 * Math.PI);
+    g.arc(x, y - 20, 26, 0.75 * Math.PI, 0.25 * Math.PI, true);
+    g.closePath();
+    g.fillStyle = '#fdf6ff';
+    g.fill();
+    g.clip();
+    g.fillStyle = '#c7a9d9';
+    for (let tx = x - 18; tx <= x + 18; tx += 6) g.fillRect(tx, y - 20, 1, 30);
+    g.restore();
+    for (const ex of [x - 12, x + 12]) {
+      g.fillStyle = '#e8e04a';
+      g.beginPath();
+      g.ellipse(ex, y - 14, 5, 3, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#2a1a3a';
+      g.fillRect(ex, y - 17, 1, 6);
+    }
+
+    // floating playing cards
+    for (const [cx, cy, angle, suit] of [[250, 64, 0.4, '#e0453a'], [318, 96, -0.3, '#2a1a3a'], [206, 110, 0.15, '#e0453a']]) {
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(angle);
+      g.fillStyle = '#3a2d4a';
+      g.fillRect(-6, -8, 12, 16);
+      g.fillStyle = '#fff';
+      g.fillRect(-5, -7, 10, 14);
+      g.fillStyle = suit;
+      polygon(g, [[0, -3], [3, 0], [0, 3], [-3, 0]]);
+      g.restore();
+    }
+
+    // giant mushrooms
+    for (const [mx, top, stemW, rx, ry] of [[150, 176, 14, 34, 22], [214, 202, 8, 20, 13]]) {
+      g.fillStyle = '#f3e3c3';
+      g.fillRect(mx - stemW / 2, top, stemW, GROUND_Y - top);
+      g.fillStyle = '#e0453a';
+      g.beginPath();
+      g.ellipse(mx, top + 2, rx, ry, 0, Math.PI, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#fff';
+      for (const [dx, dy, r] of [[-0.5, -0.45, 0.14], [0.1, -0.7, 0.12], [0.55, -0.35, 0.13]]) {
+        disc(g, mx + dx * rx, top + 2 + dy * ry, r * rx);
+      }
+    }
+
+    // checkerboard floor
+    for (let row = 0; GROUND_Y + row * 8 < H; row++) {
+      for (let col = 0; col * 8 < W; col++) {
+        g.fillStyle = (row + col) % 2 ? '#3a2d4a' : '#f2e9dc';
+        g.fillRect(col * 8, GROUND_Y + row * 8, 8, 8);
+      }
+    }
+  }
+
+  function chocolate(g) {
+    // candy hills and a meadow of candy grass
+    g.fillStyle = '#f7b6d2';
+    for (const [hx, hy, r] of [[158, 204, 64], [330, 214, 50], [455, 208, 40]]) {
+      g.beginPath();
+      g.arc(hx, hy, r, Math.PI, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = '#9be58a';
+    g.fillRect(0, 196, W, GROUND_Y - 196);
+
+    // chocolate river and waterfall
+    for (let x = 0; x < W; x += 2) {
+      const top = Math.round(206 + Math.sin(x / 30) * 3);
+      g.fillStyle = '#6b3a22';
+      g.fillRect(x, top, 2, 9);
+      if (x % 14 === 0) {
+        g.fillStyle = '#8f5635';
+        g.fillRect(x, top + 3, 5, 1);
+      }
+    }
+    g.fillStyle = '#c98aa8'; // cliff it pours over
+    polygon(g, [[126, 212], [130, 162], [140, 152], [176, 150], [186, 160], [190, 212]]);
+    g.fillStyle = '#6b3a22';
+    g.fillRect(149, 150, 18, 60);
+    g.fillStyle = '#8f5635';
+    for (const [sx, sy] of [[152, 154], [156, 160], [160, 150], [164, 168]]) g.fillRect(sx, sy, 1, 30);
+    g.fillStyle = '#e8c9a0'; // splash where it meets the river
+    g.beginPath();
+    g.ellipse(158, 210, 15, 3, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // lollipop trees
+    for (const [lx, top, r, color] of [[222, 150, 14, '#ff4f7b'], [252, 184, 10, '#5ec8f2'], [470, 140, 12, '#ffb000']]) {
+      g.fillStyle = '#fbf3ea';
+      g.fillRect(lx - 1, top, 2, GROUND_Y - top);
+      for (let i = 0; r - i * 4 > 0; i++) {
+        g.fillStyle = i % 2 ? '#fff' : color;
+        disc(g, lx, top, r - i * 4);
+      }
+    }
+
+    // gumdrops
+    for (const [gx, color] of [[108, '#ff6fa5'], [120, '#ffd23f'], [196, '#6fd3ff']]) {
+      g.fillStyle = color;
+      g.beginPath();
+      g.arc(gx, GROUND_Y, 5, Math.PI, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  function gatsby(g) {
+    // stars and fireworks
+    g.fillStyle = '#e8e2c8';
+    for (const [x, y] of [[40, 30], [96, 18], [150, 52], [212, 26], [262, 60], [330, 16], [470, 70], [120, 90]]) {
+      g.fillRect(x, y, 1, 1);
+    }
+    for (const [fx, fy, color] of [[300, 54, '#ffd86b'], [372, 90, '#ff9ecf'], [438, 42, '#fff4d6']]) {
+      g.fillStyle = color;
+      g.fillRect(fx - 1, fy - 1, 2, 2);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        for (const d of [5, 9, 13]) {
+          const s = d === 13 ? 1 : 2;
+          g.fillRect(Math.round(fx + Math.cos(a) * d), Math.round(fy + Math.sin(a) * d), s, s);
+        }
+      }
+    }
+
+    // the bay, with the green light at the end of the dock
+    g.fillStyle = '#0e2433';
+    g.fillRect(0, 200, W, GROUND_Y - 200);
+    g.fillStyle = 'rgba(255, 216, 107, 0.35)';
+    for (let i = 0; i < 18; i++) g.fillRect((i * 53) % W, 206 + (i * 7) % 30, 6, 1);
+    g.fillStyle = '#05070c';
+    g.fillRect(248, 196, 28, 4);
+    g.fillRect(261, 186, 2, 12);
+    g.fillStyle = 'rgba(57, 255, 136, 0.25)';
+    disc(g, 262, 185, 6);
+    g.fillStyle = '#39ff88';
+    disc(g, 262, 185, 2);
+    g.fillStyle = 'rgba(57, 255, 136, 0.35)';
+    for (let y = 204; y < 236; y += 4) g.fillRect(260, y, 4, 1);
+
+    // art deco mansion with lit windows
+    g.fillStyle = '#10131f';
+    g.fillRect(100, 168, 116, 72);
+    g.fillRect(100, 150, 16, 18);
+    g.fillRect(200, 150, 16, 18);
+    g.fillRect(142, 132, 32, 36);
+    g.fillRect(148, 124, 20, 8);
+    g.fillRect(154, 116, 8, 8);
+    g.fillRect(157, 104, 2, 12);
+    g.fillStyle = '#ffd86b';
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 13; col++) {
+        if ((row * 5 + col * 3) % 7 !== 0) g.fillRect(104 + col * 9, 174 + row * 14, 3, 5);
+      }
+    }
+    for (const [wx, wy] of [[148, 138], [156, 138], [164, 138], [148, 152], [164, 152], [106, 156], [206, 156]]) {
+      g.fillRect(wx, wy, 4, 6);
+    }
+    g.fillRect(154, 226, 8, 14);
+
+    // gold trim on the terrace
+    g.fillStyle = '#d4af37';
+    g.fillRect(0, GROUND_Y + 6, W, 1);
   }
 
   // ---------- sprites (plain shapes) ----------

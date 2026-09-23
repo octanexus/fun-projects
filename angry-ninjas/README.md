@@ -13,7 +13,14 @@ Fling ninjas from a slingshot and slice every fruit. A small physics game in a c
 - Wood breaks easily, ice breaks very easily, and stone takes a solid hit.
 - Clear every fruit to finish the level. Each ninja you don't use is worth 10,000 points.
 
-There are three levels: **First Slice**, **Thin Ice** and **Stone Temple**.
+There are six levels:
+
+1. **First Slice**
+2. **Thin Ice**
+3. **Stone Temple**
+4. **Mad Tea Party**: Alice in Wonderland, with a Cheshire grin, giant mushrooms and a checkerboard floor.
+5. **Chocolate River**: a chocolate factory, with a chocolate waterfall, lollipop trees and candy grass.
+6. **Gatsby's Party**: The Great Gatsby (2013 film style), with an art-deco mansion, fireworks and the green light across the bay.
 
 ## Install
 

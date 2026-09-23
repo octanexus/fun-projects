@@ -84,6 +84,48 @@
       ],
       fruits: [['apple', 310, 0], ['orange', 412, 42], ['melon', 352, 48], ['apple', 352, 90]],
     },
+    {
+      name: 'Mad Tea Party',
+      theme: 'wonderland',
+      ninjas: 4,
+      blocks: [
+        ['wood', 'post', 284, 0], ['wood', 'post', 372, 0], ['wood', 'beam', 328, 36],
+        ['ice', 'sq', 316, 42], ['ice', 'sq', 356, 42],
+        ['wood', 'post', 415, 0], ['wood', 'post', 445, 0], ['wood', 'plank', 430, 36],
+        ['stone', 'sq', 430, 42], ['stone', 'sq', 430, 54],
+      ],
+      fruits: [['apple', 296, 42], ['orange', 336, 42], ['melon', 328, 0], ['apple', 430, 66]],
+    },
+    {
+      name: 'Chocolate River',
+      theme: 'chocolate',
+      ninjas: 4,
+      blocks: [
+        ['wood', 'sq', 290, 0], ['wood', 'sq', 302, 0], ['wood', 'sq', 290, 12],
+        ['wood', 'sq', 302, 12], ['wood', 'sq', 290, 24], ['wood', 'sq', 302, 24],
+        ['wood', 'sq', 386, 0], ['wood', 'sq', 398, 0], ['wood', 'sq', 386, 12],
+        ['wood', 'sq', 398, 12], ['wood', 'sq', 386, 24], ['wood', 'sq', 398, 24],
+        ['stone', 'beam', 344, 36], ['ice', 'sq', 316, 42],
+        ['ice', 'post', 430, 0], ['ice', 'post', 450, 0], ['wood', 'plank', 440, 36],
+        ['ice', 'post', 430, 42], ['ice', 'post', 450, 42], ['wood', 'plank', 440, 78],
+      ],
+      fruits: [['apple', 344, 0], ['melon', 344, 42], ['orange', 372, 42], ['apple', 440, 84]],
+    },
+    {
+      name: "Gatsby's Party",
+      theme: 'gatsby',
+      ninjas: 4,
+      blocks: [
+        ['stone', 'post', 312, 0], ['stone', 'post', 396, 0], ['stone', 'beam', 354, 36],
+        ['ice', 'sq', 330, 42], ['ice', 'sq', 342, 42], ['ice', 'sq', 354, 42], ['ice', 'sq', 366, 42], ['ice', 'sq', 378, 42],
+        ['ice', 'sq', 336, 54], ['ice', 'sq', 348, 54], ['ice', 'sq', 360, 54], ['ice', 'sq', 372, 54],
+        ['ice', 'sq', 342, 66], ['ice', 'sq', 354, 66], ['ice', 'sq', 366, 66],
+        ['ice', 'sq', 348, 78], ['ice', 'sq', 360, 78],
+        ['stone', 'post', 428, 0], ['stone', 'post', 452, 0], ['stone', 'plank', 440, 36],
+        ['stone', 'post', 428, 42], ['stone', 'post', 452, 42], ['stone', 'plank', 440, 78],
+      ],
+      fruits: [['apple', 354, 0], ['melon', 354, 90], ['orange', 440, 84], ['apple', 440, 0]],
+    },
   ];
 
   // Limit a slingshot pull to its maximum length and keep the ninja above the ground.
