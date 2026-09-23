@@ -151,6 +151,18 @@
       ],
       fruits: [['apple', 303, 0], ['apple', 317, 42], ['apple', 420, 0], ['apple', 317, 84]],
     },
+    {
+      name: 'Winter Lights',
+      theme: 'winter',
+      ninjas: 4,
+      blocks: [
+        ['stone', 'sq', 284, 0], ['wood', 'sq', 296, 0], ['ice', 'sq', 290, 12],
+        ['stone', 'post', 383, 0], ['stone', 'post', 437, 0], ['stone', 'long', 410, 36],
+        ['ice', 'post', 398, 42], ['ice', 'post', 422, 42], ['wood', 'plank', 410, 78],
+        ['wood', 'sq', 410, 84],
+      ],
+      fruits: [['apple', 290, 24], ['apple', 410, 0], ['orange', 410, 42], ['orange', 410, 96]],
+    },
   ];
 
   // Limit a slingshot pull to its maximum length and keep the ninja above the ground.

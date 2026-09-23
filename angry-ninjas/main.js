@@ -27,7 +27,8 @@
     chocolate: { sky: ['#ff9ccf', '#fff1d6'], ground: '#4a2a1a', grass: '#7de07a', scenery: chocolate, animate: chocolateFlow },
     gatsby: { sky: ['#070a18', '#23455a'], ground: '#14110b', grass: '#d4af37', scenery: gatsby },
     gothic: { sky: ['#3b3846', '#8e8a99'], ground: '#1d1b22', grass: '#4a4656', scenery: gothic, animate: bats },
-    pines: { sky: ['#4b5d6b', '#aebfc4'], ground: '#2d3b33', grass: '#56705c', scenery: pines, animate: rain },
+    pines: { sky: ['#4b5d6b', '#aebfc4'], ground: '#2d3b33', grass: '#56705c', scenery: pines, weather: rain },
+    winter: { sky: ['#16213e', '#51658f'], ground: '#3a3642', grass: '#cfd8e6', scenery: winter, animate: twinkle, weather: snow },
   };
   const GRAVITY = 0.0005; // canvas px per ms², matches the physics world
 
@@ -96,7 +97,7 @@
     return c;
   }
 
-  // ---------- themed scenery for levels 4-6 (drawn once into the cached background) ----------
+  // ---------- themed scenery for levels 4-9 (drawn once into the cached background) ----------
 
   function wonderland(g) {
     // Cheshire cat grin
@@ -363,6 +364,21 @@
     }
   }
 
+  // Pine tree of three stacked tiers, optionally with snow on each tier.
+  function pine(g, x, base, h, color, snowy) {
+    for (let k = 0; k < 3; k++) {
+      const top = base - h + k * h * 0.25, half = h * (0.225 + k * 0.1125), tierH = h * 0.45;
+      g.fillStyle = color;
+      polygon(g, [[x, top], [x + half, top + tierH], [x - half, top + tierH]]);
+      if (snowy) {
+        g.fillStyle = '#e8eef8';
+        polygon(g, [[x, top], [x + half * 0.4, top + tierH * 0.4], [x - half * 0.4, top + tierH * 0.4]]);
+      }
+    }
+    g.fillStyle = color;
+    g.fillRect(x - 1, base - h * 0.1, 2, h * 0.1);
+  }
+
   function pines(g) {
     g.fillStyle = 'rgba(255, 255, 255, 0.25)'; // sun hidden behind cloud
     disc(g, 408, 52, 16);
@@ -374,22 +390,14 @@
     }
 
     // layered pine forest fading into the mist
-    const pine = (x, base, h, color) => {
-      g.fillStyle = color;
-      for (let k = 0; k < 3; k++) {
-        const top = base - h + k * h * 0.25, half = h * (0.225 + k * 0.1125);
-        polygon(g, [[x, top], [x + half, top + h * 0.45], [x - half, top + h * 0.45]]);
-      }
-      g.fillRect(x - 1, base - h * 0.1, 2, h * 0.1);
-    };
-    for (let i = 0; i < 36; i++) pine(i * 14 + 4, 204, 30 + ((i * 37) % 15), '#8aa3a6');
+    for (let i = 0; i < 36; i++) pine(g, i * 14 + 4, 204, 30 + ((i * 37) % 15), '#8aa3a6');
     g.fillStyle = 'rgba(230, 238, 240, 0.35)';
     g.fillRect(0, 184, W, 22);
-    for (let i = 0; i < 19; i++) pine(i * 26 + 10, 226, 48 + ((i * 29) % 22), '#56766f');
+    for (let i = 0; i < 19; i++) pine(g, i * 26 + 10, 226, 48 + ((i * 29) % 22), '#56766f');
     g.fillStyle = 'rgba(230, 238, 240, 0.25)';
     g.fillRect(0, 214, W, 14);
-    pine(186, GROUND_Y, 110, '#26403b');
-    pine(470, GROUND_Y, 104, '#26403b');
+    pine(g, 186, GROUND_Y, 110, '#26403b');
+    pine(g, 470, GROUND_Y, 104, '#26403b');
 
     // a few sparkles
     g.fillStyle = '#ffffff';
@@ -409,53 +417,53 @@
     disc(g, 225, 235, 3);
   }
 
+  // Rain and snow share a simple camera: each particle sits at a fixed distance from it,
+  // spread uniformly through the volume in view, and perspective scales its speed and size.
+  const FOCAL_PX = H / (2 * Math.tan((15 * Math.PI) / 180)); // 30 degree vertical field of view
+  const inVolume = (near, far) => Math.cbrt(near ** 3 + Math.random() * (far ** 3 - near ** 3));
+  const breeze = (now, mean, gust) => mean + gust * Math.sin(now * 0.0007) * Math.sin(now * 0.00023 + 1); // m/s
+
+  function frameSeconds(now, last) {
+    return (last && now - last < 100 ? now - last : 16) / 1000;
+  }
+
   // Rain, modelled on real drops:
-  // - sizes follow the Marshall-Palmer distribution (exponential, slope 4.1 * R^-0.21 per mm)
+  // - sizes follow the Marshall-Palmer distribution (exponential, slope 4.1 * R^-0.21 per mm);
+  //   drops under 0.8 mm are too small to see as streaks, so they are left out
   // - each drop falls at the terminal velocity for its size, 9.65 - 10.3 * e^(-0.6 D) m/s
   //   (Atlas et al. 1973 fit to Gunn & Kinzer 1949)
   // - quadratic air drag balances gravity at that speed, so drops lag behind wind gusts
-  //   and small drops slant more than big ones
-  // - each drop sits at a fixed distance from the camera, spread by volume (more far than near);
-  //   perspective makes near drops fast, long and bright, far ones slow, short and faint
+  // - only drops within a few metres of the camera show up as separate streaks (rain farther
+  //   away blurs into haze), so those are the only ones drawn, in front of the scene
   // - streaks are as long as a film camera's 1/48 s shutter would blur them
-  const RAIN_RATE = 25; // mm per hour: steady, fairly heavy rain
-  const RAIN_SLOPE = 4.1 * Math.pow(RAIN_RATE, -0.21);
+  const RAIN_SLOPE = 4.1 * Math.pow(50, -0.21); // heavy rain, 50 mm per hour
+  const RAIN_NEAR = 1.5, RAIN_FAR = 7; // metres from the camera
+  const RAIN_DROPS = 150;
   const SHUTTER = 1 / 48; // s
-  const FOCAL_PX = H / (2 * Math.tan((15 * Math.PI) / 180)); // 30 degree vertical field of view
-  const NEAR = 2, FAR = 15; // metres; the fruit structures stand at FAR
-  const HORIZON_Y = 200;
-  const RAIN_DROPS = 200;
   const drops = [];
   const splashes = [];
   let rainLast = 0;
 
-  function windSpeed(now) { // m/s: a light breeze with slow, irregular gusts
-    const t = now / 1000;
-    return 1 + 0.8 * Math.sin(t * 0.7) * Math.sin(t * 0.23 + 1);
-  }
-
   function newDrop(d, wind, anywhere) {
-    const size = Math.min(4, 0.5 - Math.log(1 - Math.random()) / RAIN_SLOPE); // mm; drizzle is invisible
+    const size = Math.min(4, 0.8 - Math.log(1 - Math.random()) / RAIN_SLOPE); // mm
+    const near = (RAIN_FAR - d.dist) / (RAIN_FAR - RAIN_NEAR); // 1 = closest to the camera
     d.vt = 9.65 - 10.3 * Math.exp(-0.6 * size);
     d.pxPerM = FOCAL_PX / d.dist;
-    d.floor = HORIZON_Y + ((GROUND_Y - HORIZON_Y) * FAR) / d.dist; // where the ground is at this distance
-    d.alpha = (0.12 + (0.5 * NEAR) / d.dist) * (0.5 + 0.5 * Math.min(1, size / 2.5));
-    d.width = d.dist < 3.5 ? 2 : 1;
-    d.x = rand(-100, W + 10);
-    d.y = anywhere ? rand(-20, Math.min(d.floor, H)) : rand(-30, 0);
+    d.floor = GROUND_Y + 2 + (H - GROUND_Y - 4) * near; // nearer drops land lower on the ground strip
+    d.alpha = (0.18 + (0.4 * RAIN_NEAR) / d.dist) * (0.6 + 0.4 * Math.min(1, size / 2.5));
+    d.width = d.dist < 2.5 ? 2 : 1;
+    d.x = rand(-40, W + 10);
+    d.y = anywhere ? rand(-20, d.floor) : rand(-40, 0);
     d.vx = wind; // already falling at terminal velocity
     d.vy = d.vt;
     return d;
   }
 
   function rain(g, now) {
-    const dt = (rainLast && now - rainLast < 100 ? now - rainLast : 16) / 1000;
+    const dt = frameSeconds(now, rainLast);
     rainLast = now;
-    const wind = windSpeed(now);
-    while (drops.length < RAIN_DROPS) {
-      const dist = Math.cbrt(NEAR ** 3 + Math.random() * (FAR ** 3 - NEAR ** 3)); // uniform in volume
-      drops.push(newDrop({ dist }, wind, true));
-    }
+    const wind = breeze(now, 0.5, 0.3);
+    while (drops.length < RAIN_DROPS) drops.push(newDrop({ dist: inVolume(RAIN_NEAR, RAIN_FAR) }, wind, true));
 
     for (const d of drops) {
       const ux = d.vx - wind, uy = d.vy; // velocity relative to the air
@@ -464,11 +472,9 @@
       d.vy += (9.8 - drag * uy) * dt;
       d.x += d.vx * d.pxPerM * dt;
       d.y += d.vy * d.pxPerM * dt;
-      if (d.y >= d.floor || d.y > H + 30) {
-        if (d.y >= d.floor && d.floor < H) {
-          for (let i = 0; i < 2; i++) {
-            splashes.push({ x: d.x, y: d.floor, vx: rand(-0.02, 0.02), vy: -rand(0.02, 0.05), life: 160 });
-          }
+      if (d.y >= d.floor) {
+        if (Math.random() < 0.4) { // most splashes are too small to see
+          splashes.push({ x: d.x, y: d.floor, vx: rand(-0.03, 0.03), vy: -rand(0.03, 0.06), life: 110 });
         }
         newDrop(d, wind, false);
       }
@@ -484,15 +490,174 @@
       g.stroke();
     }
 
-    g.fillStyle = 'rgba(222, 234, 242, 0.5)';
+    g.fillStyle = 'rgba(222, 234, 242, 0.4)';
     for (let i = splashes.length - 1; i >= 0; i--) {
-      const s = splashes[i];
-      s.vy += GRAVITY * dt * 1000;
-      s.x += s.vx * dt * 1000;
-      s.y += s.vy * dt * 1000;
-      s.life -= dt * 1000;
-      if (s.life <= 0) splashes.splice(i, 1);
-      else g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
+      const sp = splashes[i];
+      sp.vy += GRAVITY * dt * 1000;
+      sp.x += sp.vx * dt * 1000;
+      sp.y += sp.vy * dt * 1000;
+      sp.life -= dt * 1000;
+      if (sp.life <= 0) splashes.splice(i, 1);
+      else g.fillRect(Math.round(sp.x), Math.round(sp.y), 1, 1);
+    }
+  }
+
+  // Snow:
+  // - flakes fall at 0.8 * D^0.16 m/s for a flake D mm across (Locatelli & Hobbs 1974,
+  //   unrimed aggregates of dendrites), about 1 m/s whatever their size
+  // - they are so light that they move with the air almost at once, drifting on the breeze
+  //   and fluttering from side to side as they tumble
+  // - flakes at the depth of the fruit structures or beyond settle on the ground, building a
+  //   snow layer that slumps sideways wherever it gets steeper than loose snow can hold
+  const SNOW_NEAR = 1.5, SNOW_FAR = 14; // metres from the camera
+  const SNOW_SETTLES = 8; // flakes nearer than this fall past the bottom of the screen
+  const SNOW_FLAKES = 240;
+  const SNOW_MAX = 5; // px of settled snow
+  const SNOW_REPOSE = 1.2; // steepest step between neighbouring columns, px
+  const SETTLE_BUMP = [0.09, 0.22, 0.45, 0.22, 0.09]; // px added around the spot a flake lands on
+  const flakes = [];
+  const snowDepth = new Float32Array(W);
+  let snowLast = 0;
+  let snowGame = null;
+
+  function newFlake(f, anywhere) {
+    const size = Math.min(15, 2 - Math.log(1 - Math.random()) * 3); // mm
+    f.vt = 0.8 * Math.pow(size, 0.16);
+    f.pxPerM = FOCAL_PX / f.dist;
+    f.settles = f.dist >= SNOW_SETTLES;
+    f.px = f.dist < 3 ? 2 : 1;
+    f.alpha = Math.min(1, 0.35 + 2 / f.dist);
+    f.flutter = rand(0.15, 0.4); // m/s
+    f.freq = rand(0.5, 1.3) * Math.PI * 2; // rad/s
+    f.phase = rand(0, Math.PI * 2);
+    f.x = rand(-60, W + 10);
+    f.y = anywhere ? rand(-10, GROUND_Y) : rand(-20, 0);
+    return f;
+  }
+
+  function snow(g, now) {
+    const dt = frameSeconds(now, snowLast);
+    snowLast = now;
+    if (snowGame !== game) { // a new level starts with bare ground
+      snowGame = game;
+      snowDepth.fill(0);
+    }
+    while (flakes.length < SNOW_FLAKES) flakes.push(newFlake({ dist: inVolume(SNOW_NEAR, SNOW_FAR) }, true));
+    const wind = breeze(now, 0.4, 0.3), t = now / 1000;
+
+    for (const f of flakes) {
+      const vx = wind + f.flutter * Math.sin(f.freq * t + f.phase);
+      f.x += vx * f.pxPerM * dt;
+      f.y += f.vt * f.pxPerM * dt;
+      const col = Math.round(f.x);
+      if (f.settles && f.y >= GROUND_Y - (col >= 0 && col < W ? snowDepth[col] : 0)) {
+        if (col >= 0 && col < W) {
+          SETTLE_BUMP.forEach((amount, i) => {
+            const c = col + i - 2;
+            if (c >= 0 && c < W) snowDepth[c] = Math.min(SNOW_MAX, snowDepth[c] + amount);
+          });
+        }
+        newFlake(f, false);
+      } else if (f.y > H + 4) {
+        newFlake(f, false);
+      }
+    }
+    for (let x = 0; x < W - 1; x++) { // slump
+      const step = snowDepth[x] - snowDepth[x + 1];
+      if (Math.abs(step) > SNOW_REPOSE) {
+        const move = ((Math.abs(step) - SNOW_REPOSE) / 2) * Math.sign(step);
+        snowDepth[x] -= move;
+        snowDepth[x + 1] += move;
+      }
+    }
+
+    g.fillStyle = '#f4f7fb';
+    for (let x = 0; x < W; x++) {
+      const d = Math.round(snowDepth[x]);
+      if (d > 0) g.fillRect(x, GROUND_Y - d, 1, d + 3);
+    }
+    for (const f of flakes) {
+      g.fillStyle = `rgba(255, 255, 255, ${f.alpha.toFixed(2)})`;
+      g.fillRect(Math.round(f.x), Math.round(f.y), f.px, f.px);
+    }
+  }
+
+  const TREES = [[186, GROUND_Y, 110], [470, GROUND_Y, 104]]; // the two big pines: x, base, height
+
+  function winter(g) {
+    g.fillStyle = '#f4f1e0';
+    disc(g, 408, 48, 14);
+    g.fillStyle = '#dfe6ff';
+    for (const [x, y] of [[40, 30], [96, 18], [150, 52], [212, 26], [262, 60], [330, 16], [460, 90], [120, 90]]) {
+      g.fillRect(x, y, 1, 1);
+    }
+    for (let i = 0; i < 36; i++) pine(g, i * 14 + 4, 204, 30 + ((i * 37) % 15), '#3d4f78', true);
+    g.fillStyle = 'rgba(210, 222, 255, 0.18)';
+    g.fillRect(0, 184, W, 22);
+    for (let i = 0; i < 19; i++) pine(g, i * 26 + 10, 226, 48 + ((i * 29) % 22), '#2a3c5f', true);
+    g.fillStyle = 'rgba(210, 222, 255, 0.12)';
+    g.fillRect(0, 214, W, 14);
+    for (const [x, base, h] of TREES) pine(g, x, base, h, '#1f3b35', true);
+
+    // snowman
+    g.fillStyle = '#f4f7fb';
+    disc(g, 250, 233, 7);
+    disc(g, 250, 221, 5.5);
+    disc(g, 250, 212, 4.5);
+    g.fillStyle = '#d62828';
+    g.fillRect(246, 216, 9, 2);
+    g.fillStyle = '#1a1a1a';
+    for (const [x, y] of [[248, 210], [251, 210], [250, 220], [250, 224]]) g.fillRect(x, y, 1, 1);
+    g.fillStyle = '#ff8a2a';
+    polygon(g, [[251, 212], [256, 213], [251, 214]]);
+    g.strokeStyle = '#5a3a1e';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(245, 220);
+    g.lineTo(238, 214);
+    g.moveTo(255, 220);
+    g.lineTo(262, 215);
+    g.stroke();
+  }
+
+  // Christmas lights strung diagonally across each tier of the big pines, plus a star on top.
+  const LIGHT_COLORS = ['#ff5a5a', '#ffd23f', '#5ad1ff', '#7dff7a', '#ff8ff0'];
+  const lights = [];
+  for (const [x, base, h] of TREES) {
+    for (let k = 0; k < 3; k++) {
+      const top = base - h + k * h * 0.25, half = h * (0.225 + k * 0.1125), tierH = h * 0.45;
+      const count = Math.round((half * 2) / 6);
+      for (let i = 0; i < count; i++) {
+        const u = (i + 0.5) / count, reach = half * (0.35 + 0.5 * u);
+        lights.push({
+          x: Math.round(x + (-0.85 + 1.7 * u) * reach), y: Math.round(top + tierH * (0.35 + 0.5 * u)),
+          color: LIGHT_COLORS[lights.length % LIGHT_COLORS.length],
+          phase: Math.random() * Math.PI * 2, speed: 0.6 + Math.random() * 0.8,
+        });
+      }
+    }
+  }
+
+  function twinkle(g, now) {
+    for (const l of lights) {
+      const on = Math.sin(now * 0.003 * l.speed + l.phase) > -0.3;
+      g.fillStyle = l.color;
+      if (on) { // glow around a lit bulb
+        g.globalAlpha = 0.3;
+        g.fillRect(l.x - 1, l.y - 1, 4, 4);
+      }
+      g.globalAlpha = on ? 1 : 0.3;
+      g.fillRect(l.x, l.y, 2, 2);
+      g.globalAlpha = 1;
+    }
+    for (const [x, base, h] of TREES) {
+      const glow = 0.25 + 0.2 * Math.sin(now * 0.004 + x);
+      g.fillStyle = `rgba(255, 210, 63, ${glow.toFixed(2)})`;
+      disc(g, x, base - h, 5);
+      g.fillStyle = '#ffd23f';
+      polygon(g, [[x, base - h - 4], [x + 1.2, base - h - 1.2], [x + 4, base - h - 1], [x + 1.8, base - h + 1],
+        [x + 2.5, base - h + 4], [x, base - h + 2], [x - 2.5, base - h + 4], [x - 1.8, base - h + 1],
+        [x - 4, base - h - 1], [x - 1.2, base - h - 1.2]]);
     }
   }
 
@@ -785,9 +950,9 @@
   // ---------- render ----------
 
   function render() {
+    const theme = THEMES[game.level.theme], now = performance.now();
     ctx.drawImage(background(game.level.theme), 0, 0);
-    const animate = THEMES[game.level.theme].animate;
-    if (animate) animate(ctx, performance.now());
+    if (theme.animate) theme.animate(ctx, now);
 
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     for (const p of game.trail) ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 2, 2);
@@ -813,6 +978,7 @@
       band(TIP_BACK, TIP_FRONT);
     }
 
+    if (theme.weather) theme.weather(ctx, now); // rain and snow fall in front of the scene
     drawParticles();
   }
 

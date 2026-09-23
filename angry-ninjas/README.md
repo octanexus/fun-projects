@@ -13,7 +13,7 @@ Fling ninjas from a slingshot and slice every fruit. A small physics game in a c
 - Wood breaks easily, ice breaks very easily, and stone takes a solid hit.
 - Clear every fruit to finish the level. Each ninja you don't use is worth 10,000 points.
 
-There are eight levels:
+There are nine levels:
 
 1. **First Slice**
 2. **Thin Ice**
@@ -23,6 +23,7 @@ There are eight levels:
 6. **Gatsby's Party**: The Great Gatsby (2013 film style), with an art-deco mansion, fireworks and the green light across the bay.
 7. **Gloom Academy**: a gothic boarding school with a half-colour spiderweb window, bats, gravestones and fog.
 8. **Misty Pines**: rain over misty pine forests, a red pickup truck and a glass house full of apples.
+9. **Winter Lights**: snowfall that slowly piles up on the ground, pines strung with twinkling Christmas lights, and a snowman.
 
 ## Install
 
